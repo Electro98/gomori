@@ -1,0 +1,50 @@
+
+# structure:
+# if <something> then
+#   *some important code*
+# else if <> then
+#   *some very important_code*
+# else
+#   *gibberish*
+# endif
+
+# commands:
+#  - end (close dialog box)
+#  - jump <to_label>
+#  - choice <var_to_store> <choice_box_id>
+#  - trigger <id>
+
+
+label:  # to identify dialog itself
+    who -> "Text that will show up.", "It can be splinted into parts."
+    you -> "That should be another dialog!"
+    who -> "Oh, just ~shut app...~"
+    "who is turned away from you to show his attitude."; "(on new line)What a weird guy"
+    end
+
+show_variables:
+    who -> "Text is dependent on variable."
+    if var_name == true then
+        who -> "Well, that was true."
+    else
+        who -> "It was very-very wrong!"
+    endif
+    "Amazing how our world is so beautiful!"; "The end."
+    end
+
+define_choice apples_oranges that
+    apple -> "Apples"
+    orange -> "Oranges"
+end_choice
+
+test_choice:
+    who -> "What do you like the most? Apples or oranges?"
+    choice answer apples_oranges
+    if answer == "apple" then
+        who -> "Good choice!", "I also really love them."
+    else
+        who -> "~EWWWW-W~", "disgusting!"
+    end
+    who -> "Anyway, go away!"
+    "*Good riddance!"
+    end
