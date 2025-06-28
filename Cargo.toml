@@ -1,0 +1,5 @@
+
+[workspace]
+members=["rust", "dialog"]
+resolver="2"
+

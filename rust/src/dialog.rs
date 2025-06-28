@@ -1,5 +1,3 @@
-use godot::classes::Image;
-
 
 struct Dialog {
 
@@ -10,3 +8,6 @@ struct Option {
 }
 
 
+enum ScriptPart {
+    
+}

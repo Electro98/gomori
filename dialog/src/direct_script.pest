@@ -1,0 +1,120 @@
+
+// -- Main rules --
+
+indent = @{
+    " "+ |
+    "\t"+
+}
+
+space = _{ " "+ | "\t"+ }
+
+new_line = _{ "\n" | "\r\n" }
+
+COMMENT = _{ indent? ~ "#" ~ (!(new_line) ~ ANY)* }
+
+empty_line = _{ "\n" }
+
+any_line = { (!("\n") ~ ANY)* }
+
+line = _{
+    label |
+    command |
+    dialog
+    // debug ONLY
+    // | any_line
+}
+
+label = ${ name ~ ":" }
+
+dialog = ${
+    (name ~ space? ~ "->" ~ space?)? ~ string ~ (separator ~ string)*
+}
+
+command = {
+    end_command |
+    jump_command |
+    choice_command |
+    trigger_command
+}
+
+end_command = { "end" }
+jump_command = ${ "jump" ~ space ~ name }
+choice_command = ${ "choice" ~ space ~ name ~ space ~ name}
+trigger_command = ${ "trigger" ~ space ~ name }
+
+
+block_inner = _{ if_block | line }
+block_line = _{ new_line ~ PEEK_ALL ~ block_inner}
+
+label_block = {
+    label ~ new_line ~
+    PUSH(indent) ~ block_inner ~
+    block_line* ~
+    DROP
+}
+
+choice_decl = {
+    "define_choice" ~ space ~ name ~ space ~ "that" ~
+    new_line ~ PUSH(indent) ~ decl_inner ~
+    (new_line ~ PEEK ~ decl_inner)* ~
+    new_line ~ DROP ~ "end_choice"
+}
+
+decl_inner = _{
+    name ~ space? ~ "->" ~ space? ~ string
+}
+
+if_block = {
+    "if" ~ space ~ condition ~ space ~ "then"
+    ~ new_line ~ PEEK_ALL ~ PUSH(indent) ~ line ~
+    block_line* ~
+    else_part? ~
+    new_line ~ DROP ~ PEEK_ALL ~ "endif"
+}
+
+else_part = {
+	new_line ~ PEEK[1..] ~ "else" ~
+    block_line*
+}
+
+direct_script = {
+    SOI ~
+    (
+        empty_line |
+        label_block |
+        choice_decl
+    )*
+    ~ EOI
+}
+
+// -- Building blocks --
+
+separator = _{ sep_line | sep_break }
+sep_line = @{ "," ~ space? }
+sep_break = @{ ";" ~ space? }
+
+condition = {
+    operand ~ space ~ logic_op ~ space ~ operand |
+    operand
+}
+
+logic_op = @{ "==" | "!=" }
+
+operand = _{ boolean | name | string | number}
+
+boolean = { "true" | "false" }
+
+number = @{ '1'..'9' ~ (digit)* }
+
+string = ${ "\"" ~ inner ~ "\"" }
+inner = @{ char* }
+char = {
+    !("\"" | "\\") ~ ANY
+    | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+    | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+}
+
+name = @{ alpha ~ (alpha | digit | symbols)* }
+alpha = { 'a'..'z' | 'A'..'Z' }
+digit = { '0'..'9' }
+symbols = { "_" }

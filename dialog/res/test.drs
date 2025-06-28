@@ -44,7 +44,24 @@ test_choice:
         who -> "Good choice!", "I also really love them."
     else
         who -> "~EWWWW-W~", "disgusting!"
-    end
+    endif
     who -> "Anyway, go away!"
     "*Good riddance!"
+    end
+
+inline_labels_loop:
+    who -> "Do you want to die?"
+    choice answer yes_no  # yes_no is always loaded and is default
+    if answer == "yes" then
+        who -> "That's too bad. Let's try again!"
+        jump inline_labels_loop
+    endif
+    who -> "Okay, okay.", "Do you like ice cream?"
+    am_i_dumb:
+    choice answer yes_no
+    if answer == "no" then
+        who -> "Are you dumb??????"
+        jump am_i_dumb
+    endif
+    who -> "Okay, I will allow that."
     end
