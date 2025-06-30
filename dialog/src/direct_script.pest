@@ -1,7 +1,7 @@
 
 // -- Main rules --
 
-indent = @{
+indent = _{
     " "+ |
     "\t"+
 }
@@ -60,13 +60,13 @@ choice_decl = {
     new_line ~ DROP ~ "end_choice"
 }
 
-decl_inner = _{
+decl_inner = {
     name ~ space? ~ "->" ~ space? ~ string
 }
 
 if_block = {
     "if" ~ space ~ condition ~ space ~ "then"
-    ~ new_line ~ PEEK_ALL ~ PUSH(indent) ~ line ~
+    ~ new_line ~ PEEK_ALL ~ PUSH(indent) ~ block_inner ~
     block_line* ~
     else_part? ~
     new_line ~ DROP ~ PEEK_ALL ~ "endif"
@@ -77,7 +77,7 @@ else_part = {
     block_line*
 }
 
-direct_script = {
+direct_script = _{
     SOI ~
     (
         empty_line |
