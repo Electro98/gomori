@@ -3,6 +3,8 @@ use std::rc::Rc;
 use pest::{Parser, error::Error, iterators::Pair};
 use pest_derive::Parser;
 
+use crate::utils::UniquePush;
+
 #[derive(Parser)]
 #[grammar = "direct_script.pest"]
 struct DirectScriptParser;
@@ -10,7 +12,7 @@ struct DirectScriptParser;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Identifier(Rc<str>);
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Text(Rc<str>);
 
 #[derive(Debug)]
@@ -71,15 +73,14 @@ pub fn parse(source: &str) -> Result<Vec<AstNode>, Error<Rule>> {
     }
 
     if !context.finalize() {
+        dbg!(&context);
         panic!("Context isn't complete!");
     }
-
-    dbg!(&ast_tree);
 
     Ok(ast_tree)
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct ParserContext {
     decl_labels: Vec<Identifier>,
     decl_choices: Vec<Identifier>,
@@ -114,21 +115,15 @@ impl ParserContext {
     }
 
     fn declare_invocation(&mut self, invoked: &Identifier) {
-        if !self.invoked_ident.contains(invoked) {
-            self.invoked_ident.push(invoked.clone());
-        }
+        self.invoked_ident.push_unique(invoked);
     }
 
     fn demand_label(&mut self, label: &Identifier) {
-        if !self.expected_labels.contains(label) {
-            self.expected_labels.push(label.clone())
-        }
+        self.expected_labels.push_unique(label);
     }
 
     fn demand_choice(&mut self, choice: &Identifier) {
-        if !self.expected_choices.contains(choice) {
-            self.expected_choices.push(choice.clone())
-        }
+        self.expected_choices.push_unique(choice);
     }
 
     fn finalize(&self) -> bool {
@@ -136,7 +131,7 @@ impl ParserContext {
         self.expected_labels
             .iter()
             .all(|val| self.decl_labels.contains(val))
-            || self
+            && self
                 .expected_choices
                 .iter()
                 .all(|val| self.decl_choices.contains(val))
@@ -177,7 +172,7 @@ fn build_ast_from_choice_decl(decl: Pair<'_, Rule>, context: &mut ParserContext)
 
     let name: Identifier = name.as_str().into();
     context
-        .declare_label(&name)
+        .declare_choice(&name)
         .expect("Duplicated choice block!");
 
     let mut declared = Vec::new();
@@ -283,12 +278,12 @@ fn parse_command(command: Pair<'_, Rule>, context: &mut ParserContext) -> AstNod
         Rule::end_command => Command::End,
         Rule::jump_command => {
             let jump_to = command.into_inner().next().unwrap().into();
-            context.demand_choice(&jump_to);
+            context.demand_label(&jump_to);
             Command::Jump(jump_to)
         }
         Rule::choice_command => {
             let mut inner = command.into_inner();
-            let var = inner.next().unwrap().into();
+            let var: Identifier = inner.next().unwrap().into();
             let choice = inner.next().unwrap().into();
             context.demand_choice(&choice);
             Command::Choice(var, choice)
@@ -351,6 +346,12 @@ impl From<&str> for Identifier {
     }
 }
 
+impl Identifier {
+    pub fn to_text(self) -> Text {
+        Text(self.0)
+    }
+}
+
 impl From<Pair<'_, Rule>> for Text {
     fn from(string: Pair<'_, Rule>) -> Self {
         assert!(
@@ -372,18 +373,36 @@ impl From<&str> for Text {
     }
 }
 
+impl Text {
+    pub fn to_ident(self) -> Identifier {
+        Identifier(self.0)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::fs::read_to_string;
 
     use pest::Parser;
 
-    use crate::grammar::{DirectScriptParser, Rule, parse};
+    use crate::grammar::{parse, DirectScriptParser, Identifier, Rule};
+
+    #[test]
+    fn is_the_same() {
+        let a: Identifier = "who!".into();
+        let b: Identifier = "who!".into();
+        assert_eq!(a, b);
+        assert_eq!(&a, &b);
+    }
 
     #[test]
     fn parse_example_file() {
         let source = read_to_string("./res/test.drs").unwrap();
-        let result = parse(&source).unwrap();
+        let _result = parse(&source).unwrap();
     }
 
     #[test]

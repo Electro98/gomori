@@ -49,6 +49,11 @@ test_choice:
     "*Good riddance!"
     end
 
+define_choice yes_no that
+    yes -> "Yes"
+    no -> "No"
+end_choice
+
 inline_labels_loop:
     who -> "Do you want to die?"
     choice answer yes_no  # yes_no should be always loaded and be default
