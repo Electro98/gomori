@@ -256,7 +256,7 @@ fn parse_dialog(dialog: Pair<'_, Rule>, context: &mut ParserContext) -> AstNode 
     for pair in dialog.into_inner() {
         match pair.as_rule() {
             Rule::name => name = Some(pair.as_str().into()),
-            Rule::sep_line => (),
+            Rule::sep_line => content.last_mut().unwrap().push(' '),
             Rule::sep_break => content.last_mut().unwrap().push('\n'),
             Rule::string => {
                 let inner = pair.into_inner().next().unwrap();
@@ -350,6 +350,10 @@ impl Identifier {
     pub fn to_text(self) -> Text {
         Text(self.0)
     }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 impl From<Pair<'_, Rule>> for Text {
@@ -389,7 +393,7 @@ mod test {
 
     use pest::Parser;
 
-    use crate::grammar::{parse, DirectScriptParser, Identifier, Rule};
+    use crate::grammar::{DirectScriptParser, Identifier, Rule, parse};
 
     #[test]
     fn is_the_same() {

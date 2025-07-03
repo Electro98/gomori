@@ -1,7 +1,5 @@
 use std::{
-    num::{NonZeroU16, NonZeroU32},
-    path::Path,
-    rc::Rc,
+    collections::HashMap, num::{NonZeroU16, NonZeroU32}, path::Path, rc::Rc
 };
 
 use crate::{
@@ -9,15 +7,19 @@ use crate::{
     utils::UniquePush,
 };
 
+type ChoiceVariants = Rc<[(Identifier, Text)]>;
+
+#[derive(Debug)]
 struct DirectScript {
     code: Box<[Command]>,
     strings: Box<[Identifier]>,
     texts: Box<[(Text, [Option<NonZeroU16>; 12])]>,
     labels: Box<[(Identifier, usize)]>,
-    choices: Box<[(Identifier, Box<[(Identifier, Text)]>)]>,
+    choices: Box<[(Identifier, ChoiceVariants)]>,
     source: Option<Rc<Path>>,
 }
 
+#[derive(Debug)]
 enum Command {
     /// who | what
     Text(Option<NonZeroU32>, u32),
@@ -30,6 +32,7 @@ enum Command {
     // Else is just jump
 }
 
+#[derive(Debug)]
 enum Variable {
     Name(u32),
     Boolean(bool),
@@ -38,11 +41,13 @@ enum Variable {
 }
 
 #[repr(u8)]
+#[derive(Debug)]
 enum LogicOperation {
     Equal,
     NotEqual,
 }
 
+#[derive(Debug)]
 enum Condition {
     Var(Variable),
     Expr(Variable, LogicOperation, Variable),
@@ -54,9 +59,115 @@ struct DirectExecution<'a> {
     last_condition: bool,
 }
 
+#[derive(Debug)]
+enum ExecutionStep {
+    Text(Option<Identifier>, Text, Vec<usize>),
+    Choice(Identifier, ChoiceVariants),
+    Trigger(Identifier),
+    End,
+}
+
 impl DirectScript {
-    fn start<'a>(&'a self, label: &str) -> DirectExecution<'a> {
-        todo!()
+    fn start<'a>(&'a self, label: &str) -> Option<DirectExecution<'a>> {
+        if let Some((_, code_ptr)) = self.labels.iter().find(|(item, _)| item.as_str() == label) {
+            Some(DirectExecution {
+                script: self,
+                code_ptr: *code_ptr,
+                last_condition: false,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Variant<'a> {
+    String(&'a str),
+    Int(i32),
+    Boolean(bool),
+}
+
+impl Variant<'_> {
+    fn to_bool(&self) -> bool {
+        match self {
+            Variant::String(string) => !string.is_empty(),
+            Variant::Int(num) => *num != 0,
+            Variant::Boolean(boolean) => *boolean,
+        }
+    }
+}
+
+trait Environment<'a> {
+    fn get(&self, name: &str) -> Option<Variant<'_>>;
+    fn set(&mut self, name: &str, value: Variant<'a>);
+}
+
+impl DirectExecution<'_> {
+    fn step(&mut self, env: &mut dyn Environment) -> ExecutionStep {
+        loop {
+            let command = &self.script.code[self.code_ptr];
+            match command {
+                // Control Flow
+                Command::Jump(jump_to) => self.code_ptr = *jump_to,
+                Command::EvalCondition(condition) => {
+                    self.last_condition = match condition {
+                        Condition::Var(var) => {
+                            self.get_variant(env, var).unwrap().to_bool()
+                        },
+                        Condition::Expr(rhs, logic_op, lhs) => {
+                            let rhs = self.get_variant(env, rhs).unwrap();
+                            let lhs = self.get_variant(env, lhs).unwrap();
+                            match logic_op {
+                                LogicOperation::Equal => rhs == lhs,
+                                LogicOperation::NotEqual => rhs != lhs,
+                            }
+                        },
+                    };
+                    self.code_ptr += 1;
+                },
+                Command::If(skip) => if self.last_condition {
+                    self.code_ptr += 1;
+                } else {
+                    self.code_ptr += *skip;
+                },
+                // User related things
+                Command::Text(who, says) => {
+                    let who = who.map(|who| self.script.strings[who.get() as usize].clone());
+                    let (says, stops) = &self.script.texts[*says as usize];
+                    let stops = stops.iter().flat_map(|item| item.map(|item| item.get() as usize)).collect();
+                    self.code_ptr += 1;
+                    return ExecutionStep::Text(who, says.clone(), stops);
+                },
+                Command::Choice(store_to, what) => {
+                    let store_to = self.script.strings[*store_to as usize].clone();
+                    let what = self.script.choices[*what as usize].1.clone();
+                    self.code_ptr += 1;
+                    return ExecutionStep::Choice(store_to, what);
+                },
+                Command::Trigger(what) => {
+                    let what = self.script.strings[*what as usize].clone();
+                    self.code_ptr += 1;
+                    return ExecutionStep::Trigger(what);
+                },
+                Command::End => return ExecutionStep::End,
+            }
+        }
+    }
+
+    fn get_variant<'a>(&'a self, env: &'a dyn Environment, var: &Variable) -> Option<Variant<'a>> {
+        match var {
+            Variable::Name(ident) => {
+                let ident = self.script.strings.get(*ident as usize)?;
+                env.get(ident.as_str())
+            },
+            Variable::Boolean(value) => Some(Variant::Boolean(*value)),
+            Variable::Text(text) => {
+                let text = self.script.strings.get(*text as usize)?;
+                Some(Variant::String(text.as_str()))
+            },
+            Variable::Int(value) => Some(Variant::Int(*value)),
+        }
     }
 }
 
@@ -65,7 +176,7 @@ fn construct_script_from_ast(ast_tree: &[AstNode]) -> DirectScript {
         .iter()
         .filter_map(|node| match node {
             AstNode::Choices(ident, content) => {
-                let content = content.clone().into_boxed_slice();
+                let content = content.clone().into();
                 Some((ident.clone(), content))
             }
             _ => None,
@@ -105,7 +216,7 @@ fn construct_script_from_ast(ast_tree: &[AstNode]) -> DirectScript {
                 let text = text.clone().to_ident();
                 strings.push_unique(&text);
                 let index = strings.iter().position(|item| item == &text).unwrap();
-                Variable::Name(index as u32)
+                Variable::Text(index as u32)
             }
             crate::grammar::Variable::Boolean(value) => Variable::Boolean(*value),
             crate::grammar::Variable::Int(value) => Variable::Int(*value),
@@ -117,7 +228,7 @@ fn construct_script_from_ast(ast_tree: &[AstNode]) -> DirectScript {
         strings: &mut Vec<Identifier>,
         texts: &mut Vec<(Text, [Option<std::num::NonZero<u16>>; 12])>,
         labels: &mut Vec<(Identifier, usize)>,
-        choices: &[(Identifier, Box<[(Identifier, Text)]>)],
+        choices: &[(Identifier, ChoiceVariants)],
     ) {
         match node {
             AstNode::Label(ident) => {
@@ -149,12 +260,10 @@ fn construct_script_from_ast(ast_tree: &[AstNode]) -> DirectScript {
                 code.push(command);
             }
             AstNode::Dialog(who, says) => {
-                let who = who
-                    .as_ref()
-                    .and_then(|who| {
-                        strings.push_unique(who);
-                        NonZeroU32::new(strings.iter().position(|item| item == who).unwrap() as u32)
-                    });
+                let who = who.as_ref().and_then(|who| {
+                    strings.push_unique(who);
+                    NonZeroU32::new(strings.iter().position(|item| item == who).unwrap() as u32)
+                });
                 let indexes = says
                     .iter()
                     .map(|text| text.as_str().len())
@@ -177,7 +286,7 @@ fn construct_script_from_ast(ast_tree: &[AstNode]) -> DirectScript {
                     .as_str()
                     .into();
                 texts.push((text, indexes));
-                code.push(Command::Text(who, texts.len() as u32));
+                code.push(Command::Text(who, texts.len() as u32 - 1));
             }
             AstNode::IfBlock(condition, nodes, else_nodes) => {
                 let cond = match condition {
@@ -260,9 +369,19 @@ impl From<&crate::grammar::LogicOperation> for LogicOperation {
     }
 }
 
+impl<'a> Environment<'a> for HashMap<Rc<str>, Variant<'a>> {
+    fn get(&self, name: &str) -> Option<Variant<'_>> {
+        self.get(name).cloned()
+    }
+
+    fn set(&mut self, name: &str, value: Variant<'a>) {
+        _ = self.insert(name.into(), value);
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use std::fs::read_to_string;
+    use std::{collections::HashMap, fs::read_to_string};
 
     use crate::{grammar::parse, interpreter::DirectScript};
 
@@ -270,6 +389,18 @@ mod test {
     fn create_from_source_file() {
         let source = read_to_string("./res/test.drs").unwrap();
         let ast_tree = parse(&source).unwrap();
-        let _script: DirectScript = ast_tree.as_slice().into();
+        let script: DirectScript = ast_tree.as_slice().into();
+
+        let mut env = HashMap::new();
+        let mut label = script.start("label").unwrap();
+
+        loop {
+            let exec_step = label.step(&mut env);
+            match exec_step {
+                super::ExecutionStep::End => break,
+                step => _ = dbg!(&step),
+            }
+        }
+        
     }
 }
