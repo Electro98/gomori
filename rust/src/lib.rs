@@ -1,9 +1,9 @@
 use godot::prelude::*;
 
 mod definitions;
+mod dialog;
 mod object;
 mod player;
-mod dialog;
 
 struct MyExtension;
 

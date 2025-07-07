@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=4 uid="uid://6mfq653xbi6a"]
+[gd_scene load_steps=25 format=4 uid="uid://6mfq653xbi6a"]
 
 [ext_resource type="TileSet" uid="uid://fmv35rduliai" path="res://resources/tilesets/whitespace.tres" id="1_f7tfs"]
 [ext_resource type="Script" uid="uid://dwea508fyn3bu" path="res://resources/scripts/static_objects.gd" id="2_ierka"]
@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" uid="uid://gxw4sari337u" path="res://resources/scenes/ui_box.tscn" id="9_ierka"]
 [ext_resource type="FontFile" uid="uid://coi33x80qntcc" path="res://resources/fonts/OMORI_GAME2.ttf" id="10_e80hb"]
 [ext_resource type="Texture2D" uid="uid://chsvhou8wuo60" path="res://originals/system/ACSArrows.png" id="11_ns147"]
+[ext_resource type="Script" uid="uid://ceqxm5vaa7yym" path="res://resources/scripts/dialog_manager.gd" id="12_54qnp"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_kek77"]
 atlas = ExtResource("4_ns147")
@@ -70,6 +71,21 @@ default_font_size = 28
 atlas = ExtResource("11_ns147")
 region = Rect2(32, 0, 32, 29)
 
+[sub_resource type="Animation" id="Animation_ps1v3"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:offset")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, 0)]
+}
+
 [sub_resource type="Animation" id="Animation_k5v3c"]
 resource_name = "arrow_sway"
 length = 2.0
@@ -96,21 +112,6 @@ tracks/1/keys = {
 "transitions": PackedFloat32Array(0.7, 0.7),
 "update": 0,
 "values": [Vector2(0, 0), Vector2(-5, 0)]
-}
-
-[sub_resource type="Animation" id="Animation_ps1v3"]
-length = 0.001
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath(".:offset")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector2(0, 0)]
 }
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_dq8wb"]
@@ -219,12 +220,16 @@ script = ExtResource("8_dq8wb")
 offset = Vector2(320, 240)
 transform = Transform2D(1, 0, 0, 1, 320, 240)
 
+[node name="DialogManager" type="DialogManager" parent="Dialog"]
+script_file = "res://resources/dialogs/test.drs"
+script = ExtResource("12_54qnp")
+
 [node name="MainBox" parent="Dialog" instance=ExtResource("9_ierka")]
 position = Vector2(-304, 120)
 polygon = PackedVector2Array(0, 0, 0, 112, 608, 112, 608, 0)
 size = Vector2i(608, 112)
 
-[node name="RichTextLabel" type="RichTextLabel" parent="Dialog/MainBox"]
+[node name="Label" type="RichTextLabel" parent="Dialog/MainBox"]
 offset_left = 19.0
 offset_top = 12.0
 offset_right = 579.0
@@ -248,7 +253,7 @@ polygon = PackedVector2Array(0, 0, 0, 44, 78, 44, 78, 0)
 background_margin = 3
 size = Vector2i(78, 44)
 
-[node name="RichTextLabel2" type="RichTextLabel" parent="Dialog/NameBox"]
+[node name="Label" type="RichTextLabel" parent="Dialog/NameBox"]
 offset_left = 12.0
 offset_top = 5.0
 offset_right = 76.0

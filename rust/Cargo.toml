@@ -9,3 +9,4 @@ crate-type = ["cdylib"]
 [dependencies]
 godot = "0.3.1"
 log = "0.4.27"
+dialog = { path = "../dialog" }

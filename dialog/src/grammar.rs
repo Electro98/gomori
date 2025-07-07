@@ -53,7 +53,7 @@ pub enum AstNode {
     IfBlock(Condition, Vec<AstNode>, Option<Vec<AstNode>>),
 }
 
-pub fn parse(source: &str) -> Result<Vec<AstNode>, Error<Rule>> {
+pub fn parse_to_ast(source: &str) -> Result<Vec<AstNode>, Error<Rule>> {
     let pairs = DirectScriptParser::parse(Rule::direct_script, source)?;
 
     let mut ast_tree = Vec::new();
@@ -249,7 +249,7 @@ fn parse_label(label: Pair<'_, Rule>, context: &mut ParserContext) -> AstNode {
     AstNode::Label(ident)
 }
 
-fn parse_dialog(dialog: Pair<'_, Rule>, context: &mut ParserContext) -> AstNode {
+fn parse_dialog(dialog: Pair<'_, Rule>, _context: &mut ParserContext) -> AstNode {
     assert_eq!(dialog.as_rule(), Rule::dialog);
     let mut name = None;
     let mut content: Vec<String> = Vec::new();
@@ -354,6 +354,10 @@ impl Identifier {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    pub(crate) fn as_rc(&self) -> &Rc<str> {
+        &self.0
+    }
 }
 
 impl From<Pair<'_, Rule>> for Text {
@@ -385,6 +389,10 @@ impl Text {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    pub(crate) fn as_rc(&self) -> &Rc<str> {
+        &self.0
+    }
 }
 
 #[cfg(test)]
@@ -393,7 +401,7 @@ mod test {
 
     use pest::Parser;
 
-    use crate::grammar::{DirectScriptParser, Identifier, Rule, parse};
+    use crate::grammar::{DirectScriptParser, Identifier, Rule, parse_to_ast};
 
     #[test]
     fn is_the_same() {
@@ -406,7 +414,7 @@ mod test {
     #[test]
     fn parse_example_file() {
         let source = read_to_string("./res/test.drs").unwrap();
-        let _result = parse(&source).unwrap();
+        let _result = parse_to_ast(&source).unwrap();
     }
 
     #[test]
