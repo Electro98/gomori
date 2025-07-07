@@ -23,6 +23,8 @@ func _process(_delta: float) -> void:
 	update_animation()
 
 func update_movement() -> void:
+	if GameState.current_state() != GameState.WORLD:
+		return
 	var x = 0
 	var y = 0
 	if Input.is_action_pressed("up"):
@@ -40,6 +42,8 @@ func update_movement() -> void:
 		var in_front_pos = self.in_front()
 		if world.is_interactable(in_front_pos):
 			print("Found in ", in_front_pos.x, ", ", in_front_pos.y, " interactable!")
+			if in_front_pos == Vector2i(26, 29):
+				get_node("/root/Scene/Dialog/DialogManager").start("label")
 
 func update_animation() -> void:
 	var cur_dir = self.direction()

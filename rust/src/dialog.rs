@@ -7,6 +7,9 @@ use dialog::{
 };
 use godot::{classes::ProjectSettings, prelude::*};
 
+use crate::singletons;
+use crate::state::GlobalState;
+
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct DialogManager {
@@ -50,6 +53,9 @@ impl DialogManager {
         self.exec = None;
         if let Some(ref script) = self.script {
             self.exec = DirectExecution::start(script, &label);
+            let mut game_state = singletons::game_state();
+            game_state.bind_mut().change_state(GlobalState::Dialog);
+            self.step();
         }
         self.exec.is_some()
     }

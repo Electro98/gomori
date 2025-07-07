@@ -20,6 +20,7 @@ func _ready_script() -> void:
 	name_box_text = get_node("../NameBox/Label")
 
 func _process(delta: float) -> void:
+	process_input()
 	process_text_animation(delta)
 
 func process_text_animation(delta: float):
@@ -54,13 +55,22 @@ func _end_dialog() -> void:
 	print("You smell like dead flowers")
 	main_box.hide()
 	name_box.hide()
+	#await get_tree().process_frame
+	GameState.change_state(GameState.WORLD)
 
-func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("action"):
-		if is_running():
-			step()
-		else:
-			start("label")
+func process_input() -> void:
+	if GameState.current_state() != GameState.DIALOG:
+		return
+	if not is_running():
+		push_error("Dialog is not running!")
+	if Input.is_action_just_pressed("action"):
+		step_execution()
+
+func step_execution() -> void:
+	if current_stop < stops.size():
+		text_anim_running = true
+	else:
+		step()
 
 func set_speaker(name: String) -> void:
 	if name.is_empty():
